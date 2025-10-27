@@ -12,17 +12,16 @@ import { enhanceErrorWithSourceMaps } from "./sourceMapUtils"
 
 /**
  * Initialize source map support for production builds
+ * Returns the event handlers so they can be cleaned up later
  */
-export function initializeSourceMaps(): void {
-	if (process.env.NODE_ENV !== "production") {
-		// Only needed in production builds
-		return
-	}
-
+export function initializeSourceMaps(): {
+	errorHandler: (event: ErrorEvent) => void
+	rejectionHandler: (event: PromiseRejectionEvent) => void
+} {
 	console.debug("Initializing CSP-compatible source map support for production build")
 
-	// Set up global error handler
-	window.addEventListener("error", async (event) => {
+	// Create error handler
+	const errorHandler = async (event: ErrorEvent) => {
 		if (event.error && event.error instanceof Error) {
 			try {
 				// Apply source maps to the error
@@ -36,10 +35,10 @@ export function initializeSourceMaps(): void {
 				console.error("Error enhancing error with source maps:", e)
 			}
 		}
-	})
+	}
 
-	// Set up unhandled promise rejection handler
-	window.addEventListener("unhandledrejection", async (event) => {
+	// Create unhandled promise rejection handler
+	const rejectionHandler = async (event: PromiseRejectionEvent) => {
 		if (event.reason && event.reason instanceof Error) {
 			try {
 				// Apply source maps to the error
@@ -51,7 +50,13 @@ export function initializeSourceMaps(): void {
 				console.error("Error enhancing rejection with source maps:", e)
 			}
 		}
-	})
+	}
+
+	// Set up global error handler
+	window.addEventListener("error", errorHandler)
+
+	// Set up unhandled promise rejection handler
+	window.addEventListener("unhandledrejection", rejectionHandler)
 
 	// Preload source maps for all scripts
 	try {
@@ -107,6 +112,8 @@ export function initializeSourceMaps(): void {
 	} catch (e) {
 		console.error("Error preloading source maps:", e)
 	}
+
+	return { errorHandler, rejectionHandler }
 }
 
 /**

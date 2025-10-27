@@ -224,32 +224,17 @@ const App = () => {
 
 	// kilocode_change start
 	const telemetryDistinctId = useKiloIdentity(apiConfiguration?.kilocodeToken ?? "", machineId ?? "")
-
-	// Create MemoryService instance once using useRef to prevent recreation on re-renders
-	const memoryServiceRef = useRef<MemoryService | null>(null)
-
 	useEffect(() => {
 		if (didHydrateState) {
 			telemetryClient.updateTelemetryState(telemetrySetting, telemetryKey, telemetryDistinctId)
+
+			// kilocode_change start
+			const memoryService = new MemoryService()
+			memoryService.start()
+			return () => memoryService.stop()
+			// kilocode_change end
 		}
 	}, [telemetrySetting, telemetryKey, telemetryDistinctId, didHydrateState])
-
-	// Separate effect for memory service lifecycle
-	useEffect(() => {
-		if (didHydrateState) {
-			if (!memoryServiceRef.current) {
-				memoryServiceRef.current = new MemoryService()
-				memoryServiceRef.current.start()
-			}
-
-			return () => {
-				if (memoryServiceRef.current) {
-					memoryServiceRef.current.stop()
-					memoryServiceRef.current = null
-				}
-			}
-		}
-	}, [didHydrateState])
 	// kilocode_change end
 
 	// Tell the extension that we are ready to receive messages.
@@ -257,33 +242,16 @@ const App = () => {
 
 	// Initialize source map support for better error reporting
 	useEffect(() => {
-		// Store handlers so they can be cleaned up
-		let errorHandler: ((event: ErrorEvent) => void) | null = null
-		let rejectionHandler: ((event: PromiseRejectionEvent) => void) | null = null
-
 		// Initialize source maps for better error reporting in production
-		if (process.env.NODE_ENV === "production") {
-			const { errorHandler: eh, rejectionHandler: rh } = initializeSourceMaps()
-			errorHandler = eh
-			rejectionHandler = rh
+		initializeSourceMaps()
 
-			// Expose source map debugging utilities in production
+		// Expose source map debugging utilities in production
+		if (process.env.NODE_ENV === "production") {
 			exposeSourceMapsForDebugging()
 		}
 
 		// Log initialization for debugging
 		console.debug("App initialized with source map support")
-
-		// Cleanup function to remove event listeners
-		return () => {
-			if (errorHandler) {
-				window.removeEventListener("error", errorHandler as EventListener)
-			}
-			if (rejectionHandler) {
-				window.removeEventListener("unhandledrejection", rejectionHandler as EventListener)
-			}
-		}
-	}, [])
 	}, [])
 
 	// Focus the WebView when non-interactive content is clicked (only in editor/tab mode)
