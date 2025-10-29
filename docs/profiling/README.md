@@ -1,243 +1,217 @@
-# Memory Profiling Guide
+# Profiling Documentation
 
-This directory contains documentation and tools for monitoring memory stability in Kilo Code.
+This directory contains documentation and resources for profiling and debugging memory issues in the Kilo Code extension.
 
 ## Documents
 
-- **[results.md](./results.md)** - Detailed analysis of memory fixes, before/after metrics, and verification results
+### 📊 [webview-memory.md](./webview-memory.md)
+**Comprehensive Webview Memory Audit Report**
 
-## Memory Profiling Tools
+A detailed technical audit of the React-based webview, covering:
+- Event listener cleanup patterns
+- React Query cache configuration
+- Large data structure retention
+- Message passing bridge analysis
+- Specific remediation recommendations
+- Test scenarios for reproduction
 
-### 1. Memory Profile Script
+**Audience:** Developers, QA engineers  
+**Status:** Initial audit completed 2025-01-06
 
-A command-line utility for capturing memory snapshots over time.
+### 🔧 [webview-debugging-guide.md](./webview-debugging-guide.md)
+**Practical Debugging Guide**
 
-**Usage:**
+Step-by-step instructions for debugging memory issues:
+- How to take heap snapshots
+- How to interpret DevTools output
+- Common leak patterns and solutions
+- Specific test scenarios
+- Troubleshooting tips
 
-```bash
-# Basic 5-minute profile
-pnpm memory:profile
+**Audience:** All developers, QA testers  
+**Status:** Living document - update with new findings
 
-# Extended 1-hour profile with less frequent samples
-pnpm memory:profile:extended
+## Heap Snapshots
 
-# Quick 30-second snapshot
-pnpm memory:snapshot
+Store heap snapshots here for:
+- Reproducible memory leaks
+- Before/after comparisons
+- Bug investigations
+
+**Naming Convention:**
+```
+webview-<scenario>-<date>.heapsnapshot
 ```
 
-**Custom Options:**
+**Examples:**
+- `webview-baseline-2025-01-06.heapsnapshot`
+- `webview-after-100-messages-2025-01-06.heapsnapshot`
+- `webview-grey-screen-bug-123.heapsnapshot`
 
-```bash
-# Custom duration and interval
-pnpm tsx scripts/memory-profile.ts --duration 600 --interval 30
+**⚠️ Important:** Heap snapshots are large (50-200MB). Don't commit to Git unless necessary for bug documentation. Instead:
+1. Save to external storage (Google Drive, S3, etc.)
+2. Link to them in issues or documentation
+3. Keep local copies for active investigations
 
-# Set custom threshold (in MB)
-pnpm tsx scripts/memory-profile.ts --threshold 400
+## Performance Recordings
 
-# Save results to file
-pnpm tsx scripts/memory-profile.ts --output profiling-results.json
+Store Performance tab recordings here:
 
-# Run with garbage collection exposed (recommended)
-node --expose-gc node_modules/.bin/tsx scripts/memory-profile.ts
+**Naming Convention:**
+```
+webview-<scenario>-<date>.json
 ```
 
-**Output:**
+These are usually smaller than heap snapshots and can be committed if they demonstrate specific issues.
 
-The script provides:
-- Real-time memory snapshots during execution
-- Summary statistics (initial, final, peak, average heap usage)
-- Memory growth rate (MB/min)
-- Warnings if thresholds are exceeded
-- Optional JSON export for detailed analysis
+## How to Use This Directory
 
-### 2. VSCode E2E Memory Tests
+### For Developers
 
-Automated tests that run within the VSCode extension host to verify memory stability.
+**Adding a New Feature:**
+1. Take baseline snapshot before starting
+2. Implement feature
+3. Take snapshot after feature complete
+4. Compare snapshots - memory should not increase significantly
+5. Document any expected memory changes
 
-**Location:** `apps/vscode-e2e/src/suite/memory.test.ts`
+**Fixing a Memory Leak:**
+1. Review `webview-memory.md` for known issues
+2. Follow `webview-debugging-guide.md` to reproduce
+3. Take "before fix" snapshot
+4. Implement fix
+5. Take "after fix" snapshot
+6. Verify leak is resolved
+7. Update documentation
 
-**Run Tests:**
+### For QA
 
-```bash
-cd apps/vscode-e2e
-pnpm test
+**Testing for Memory Leaks:**
+1. Follow test scenarios in `webview-debugging-guide.md`
+2. Take snapshots at key points
+3. Compare results against baselines
+4. Report any unexpected growth
+5. Save snapshots for developer review
+
+### For Troubleshooting Grey Screen Issues
+
+The "grey screen" bug may be related to memory exhaustion:
+
+1. Reproduce grey screen
+2. Check MemoryService telemetry leading up to issue
+3. Take heap snapshot if possible (before crash)
+4. Check for:
+   - Very high heap usage (>1GB)
+   - Large arrays (messages, images)
+   - Many detached DOM trees
+5. Compare with baseline to identify growth
+
+## Memory Leak Checklist
+
+Use this checklist when reviewing code changes:
+
+- [ ] All `addEventListener` have corresponding `removeEventListener`
+- [ ] All `setInterval`/`setTimeout` are cleared
+- [ ] All `useEffect` hooks with side effects have cleanup returns
+- [ ] Large data structures have size limits or pagination
+- [ ] React Query cache configured with time limits
+- [ ] Images are released after use
+- [ ] Component state is cleared on unmount
+- [ ] No global variables growing unbounded
+
+## Related Documentation
+
+### Extension-Side Memory
+- `/MEMORY_LEAK_FIXES_README.md` - Extension host memory fixes
+- `/docs/MEMORY_LEAK_FIXES.md` - Detailed technical docs
+- `/docs/MEMORY_LEAK_SUMMARY.md` - Quick summary
+
+### Webview-Side Memory
+- `./webview-memory.md` - This directory
+- `./webview-debugging-guide.md` - This directory
+
+## Tools
+
+### Required
+- Chrome/VS Code DevTools
+- Node.js with memory profiling enabled
+
+### Optional
+- React DevTools extension
+- Chrome Memory Profiler
+- Node.js `--inspect` flag for server-side debugging
+
+## Baseline Metrics
+
+**Clean Installation (No Messages):**
+- Heap Used: ~15-30 MB
+- Heap Total: ~30-50 MB
+- Component Count: ~200-300 React components
+
+**After Typical Usage (50 messages, no images):**
+- Heap Used: ~30-50 MB
+- Heap Total: ~50-100 MB
+- Message Count: 50
+- File Paths: Varies by workspace
+
+**High Usage (500 messages, 10 images):**
+- Heap Used: ~100-200 MB
+- Heap Total: ~200-300 MB
+- Message Count: 500
+- Image Memory: ~50 MB
+
+**⚠️ Warning Thresholds:**
+- Heap Used > 500 MB - Investigate
+- Heap Used > 1 GB - Critical issue
+- Message Count > 1000 - Should be paginated
+- Image Memory > 100 MB - Too many images
+
+## Monitoring in Production
+
+### MemoryService Telemetry
+
+The extension reports memory every 10 minutes (1% sample rate):
+
+**Event:** `WEBVIEW_MEMORY_USAGE`
+
+**Properties:**
+- `heapUsedMb` - Current heap usage in MB
+- `heapTotalMb` - Total allocated heap in MB
+
+**Query in analytics:**
+```sql
+SELECT AVG(heapUsedMb), MAX(heapUsedMb), COUNT(*)
+FROM telemetry_events
+WHERE event_name = 'WEBVIEW_MEMORY_USAGE'
+  AND timestamp > NOW() - INTERVAL '7 days'
 ```
 
-**Test Coverage:**
-- Extension host memory limits
-- Task memory cleanup
-- Extended session stability
-- Multiple file operations
-- Resource disposal verification
+### Setting Up Alerts
 
-### 3. Playwright Memory Tests
+Configure alerts for:
+- Average heap usage > 300 MB
+- Max heap usage > 700 MB
+- Heap growth rate > 10 MB/hour
 
-End-to-end tests that monitor webview memory usage through browser automation.
+## Contributing
 
-**Location:** `apps/playwright-e2e/tests/memory.test.ts`
+When adding documentation to this directory:
 
-**Run Tests:**
+1. **Update this README** with new documents
+2. **Use consistent formatting** - follow existing style
+3. **Include examples** - code snippets, screenshots
+4. **Date your changes** - track when information was added
+5. **Link related docs** - connect to other relevant files
 
-```bash
-cd apps/playwright-e2e
-pnpm playwright test memory.test.ts
-```
+## Questions?
 
-**Test Coverage:**
-- Grey screen detection
-- Memory warning banner verification
-- Webview memory bounds
-- Extended chat session stability
-- OOM error detection
-- Memory snapshot comparisons
-
-## Interpreting Results
-
-### Healthy Memory Profile
-
-A healthy memory profile should show:
-- **Initial heap:** 50-100 MB
-- **Peak heap:** < 500 MB during normal usage
-- **Growth rate:** < 2 MB/min sustained
-- **No warnings:** Grey screen or OOM warnings should never appear
-
-### Warning Signs
-
-Watch for these indicators of memory issues:
-- **Linear growth:** Memory continuously increasing without plateaus
-- **High growth rate:** > 5 MB/min sustained growth
-- **Threshold breaches:** Exceeding 500 MB during typical operations
-- **No cleanup:** Memory not returning to baseline after operations complete
-- **GC frequency:** Excessive garbage collection (more than every few minutes)
-
-## Continuous Monitoring
-
-### In Development
-
-1. Run memory profile script periodically during development
-2. Check memory tests pass before committing
-3. Monitor DevTools memory tab during manual testing
-
-### In Production
-
-The extension includes built-in telemetry:
-- **MemoryService** samples webview memory every 10 minutes (1% of users)
-- **MemoryWarningBanner** alerts users if memory exceeds 90% threshold
-- Events tracked: `WEBVIEW_MEMORY_USAGE`, `MEMORY_WARNING_SHOWN`
-
-### In CI/CD
-
-Memory tests run automatically:
-- VSCode E2E suite includes memory stability tests
-- Playwright suite includes memory regression tests
-- Tests fail if memory exceeds defined thresholds
-
-## Debugging Memory Issues
-
-### Capture Heap Snapshot
-
-For detailed analysis, capture a heap snapshot:
-
-```javascript
-// In VSCode extension context
-const v8 = require('v8');
-const fs = require('fs');
-const snapshot = v8.writeHeapSnapshot();
-fs.copyFileSync(snapshot, './heap-snapshot.heapsnapshot');
-```
-
-### Analyze with Chrome DevTools
-
-1. Open Chrome DevTools
-2. Go to Memory tab
-3. Load heap snapshot (.heapsnapshot file)
-4. Look for:
-   - Large retained objects
-   - Unexpected object counts
-   - Detached DOM trees (in webview)
-   - Event listener accumulation
-
-### Enable GC Logging
-
-Run extension with GC logging:
-
-```bash
-code --inspect-extensions=9229 --trace-gc
-```
-
-### Manual Verification Checklist
-
-When investigating memory issues:
-
-- [ ] Monitor memory in VSCode Task Manager (`Developer: Open Process Explorer`)
-- [ ] Check browser DevTools memory profiler for webview
-- [ ] Run extended chat session (100+ messages)
-- [ ] Perform multiple task automations (10+ tasks)
-- [ ] Verify memory returns to baseline after operations
-- [ ] Check for grey screen appearance
-- [ ] Monitor console for OOM warnings
-- [ ] Test extension reload cycle (10+ reloads)
-
-## Best Practices
-
-### For Contributors
-
-When working on code that might affect memory:
-
-1. **Profile Before and After:** Run memory profile script before and after changes
-2. **Test Disposal:** Ensure all resources have proper cleanup/disposal methods
-3. **Check Event Listeners:** Always remove event listeners when no longer needed
-4. **Release References:** Null out large objects when done with them
-5. **Test Extended Usage:** Simulate long-running scenarios
-6. **Review Memory Tests:** Run `pnpm test` and verify memory tests pass
-
-### Code Review
-
-Memory impact should be considered for:
-- Task lifecycle and disposal
-- Service manager initialization/cleanup  
-- Event listener registration/removal
-- Large data structure manipulation
-- MCP tool operations
-- Webview message passing
-- File system operations
-
-## Troubleshooting
-
-### Memory Profile Script Issues
-
-**Problem:** "global.gc is not a function"
-**Solution:** Run with `node --expose-gc` or `NODE_OPTIONS=--expose-gc`
-
-**Problem:** Script exits before completion
-**Solution:** Check for uncaught exceptions, increase timeout
-
-### Test Failures
-
-**Problem:** Memory tests fail with threshold exceeded
-**Solution:** 
-1. Check if legitimate regression or overly strict threshold
-2. Profile the specific operation to identify leak source
-3. Review recent changes affecting memory management
-
-**Problem:** "Grey screen" test false positives
-**Solution:** Verify webview is fully loaded before checking, increase wait timeout
-
-## Resources
-
-- [Node.js Memory Management](https://nodejs.org/en/docs/guides/simple-profiling/)
-- [Chrome DevTools Memory Profiler](https://developer.chrome.com/docs/devtools/memory-problems/)
-- [VSCode Extension Memory Best Practices](https://code.visualstudio.com/api/advanced-topics/extension-host)
-- [V8 Heap Profiling](https://v8.dev/docs/profile)
-
-## Support
-
-For memory-related issues or questions:
-1. Check [results.md](./results.md) for known issues and resolutions
-2. Run memory profile script to gather data
-3. Review console logs and heap snapshots
-4. File an issue with reproduction steps and profiling data
+- Check existing documentation first
+- Search closed issues for similar problems
+- Ask in team chat
+- Create issue if it's a new problem
 
 ---
 
-**Last Updated:** 2025-10-29
+**Directory Created:** 2025-01-06  
+**Last Updated:** 2025-01-06  
+**Maintained By:** Platform Team
