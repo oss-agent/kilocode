@@ -1,5 +1,23 @@
 # kilo-code
 
+## [Unreleased]
+
+### Fixed
+
+- **Memory Leak Fixes**: Comprehensive memory leak patches to improve extension stability
+  - Fixed ClineProvider not being disposed on extension deactivation, preventing memory leaks from accumulated webview resources
+  - Fixed CodeIndexManager not being disposed on deactivation, releasing file watchers and cache managers
+  - Fixed code index status subscription leak in ClineProvider
+  - Ensured all React effects properly return cleanup functions to prevent event listener accumulation
+  - Verified MemoryService properly cleans up monitoring intervals
+
+### Added
+
+- New `kilo-code.enableMemoryDiagnostics` setting to enable detailed memory diagnostics logging for investigating memory issues (default: false)
+- Memory diagnostics utility (`src/utils/memoryDiagnostics.ts`) for optional memory usage logging
+- Unit tests for memory leak prevention (`src/__tests__/memoryLeaks.spec.ts`)
+- Comprehensive documentation in `docs/MEMORY_LEAK_FIXES.md` describing all fixes and best practices
+
 ## [v4.111.0]
 
 - [#3256](https://github.com/Kilo-Org/kilocode/pull/3256) [`f81b48b`](https://github.com/Kilo-Org/kilocode/commit/f81b48b8dec9cd276c3c7ba994d0512036abfa96) Thanks [@markijbema](https://github.com/markijbema)! - Switched autocomplete to showing completions inline
@@ -116,9 +134,9 @@
 
     ```json
     {
-    	"project": {
-    		"id": "my-project-id"
-    	}
+        "project": {
+            "id": "my-project-id"
+        }
     }
     ```
 
