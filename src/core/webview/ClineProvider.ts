@@ -631,6 +631,9 @@ export class ClineProvider
             this.codeIndexStatusSubscription.dispose()
             this.codeIndexStatusSubscription = undefined
         }
+
+        // Clear task event listeners to allow earlier GC
+        this.taskEventListeners = new WeakMap()
         
         this.log("Disposed all disposables")
         ClineProvider.activeInstances.delete(this)
