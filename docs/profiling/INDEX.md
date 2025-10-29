@@ -7,6 +7,8 @@ Quick reference for all memory stability documentation and tools.
 | File | Description |
 |------|-------------|
 | [SUMMARY.md](./SUMMARY.md) | **Start here** - Complete task summary and deliverables |
+| [HEAP_PROFILING_QUICKSTART.md](./HEAP_PROFILING_QUICKSTART.md) | **NEW** - Quick start guide for heap profiling (5 min setup) |
+| [extension-memory.md](./extension-memory.md) | **NEW** - Extension host memory profiling and OOM investigation |
 | [results.md](./results.md) | Detailed before/after metrics and root cause analysis |
 | [manual-verification.md](./manual-verification.md) | Manual test results and verification notes |
 | [README.md](./README.md) | Tools guide and best practices |
@@ -25,6 +27,7 @@ Quick reference for all memory stability documentation and tools.
 |--------|---------|---------|
 | `scripts/memory-profile.ts` | `pnpm memory:profile` | General purpose memory profiling |
 | `scripts/memory-stress-test.ts` | `pnpm memory:stress` | Stress test scenarios |
+| `scripts/capture-heap-snapshot.ts` | `pnpm memory:heap-snapshot` | Capture heap snapshot via inspector |
 
 ## 📋 Quick Commands
 
@@ -38,6 +41,12 @@ pnpm memory:profile:extended
 
 # Quick 30-second snapshot
 pnpm memory:snapshot
+
+# Capture heap snapshot (requires --inspect-extensions)
+pnpm memory:heap-snapshot
+
+# Capture labeled heap snapshot
+pnpm memory:heap-snapshot -- --label baseline
 ```
 
 ### Stress Testing

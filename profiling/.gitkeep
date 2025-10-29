@@ -1,0 +1,3 @@
+# Profiling data directory
+# Heap snapshots and CPU profiles will be stored here
+# See README.md for details

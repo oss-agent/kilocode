@@ -42,6 +42,8 @@
         "memory:profile": "tsx scripts/memory-profile.ts",
         "memory:profile:extended": "tsx scripts/memory-profile.ts --duration 3600 --interval 60",
         "memory:snapshot": "tsx scripts/memory-profile.ts --duration 30 --interval 5 --output docs/profiling/snapshot.json",
+        "memory:heap-snapshot": "tsx scripts/capture-heap-snapshot.ts",
+        "memory:heap-snapshot:labeled": "tsx scripts/capture-heap-snapshot.ts --label",
         "memory:stress": "tsx scripts/memory-stress-test.ts",
         "memory:stress:chat": "tsx scripts/memory-stress-test.ts chat",
         "memory:stress:tasks": "tsx scripts/memory-stress-test.ts tasks",
