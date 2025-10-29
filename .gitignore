@@ -70,3 +70,7 @@ qdrant_storage/
 # Memory profiling output
 docs/profiling/snapshot.json
 docs/profiling/*.heapsnapshot
+profiling/*.heapsnapshot
+profiling/*.cpuprofile
+profiling/*.json
+!profiling/README.md

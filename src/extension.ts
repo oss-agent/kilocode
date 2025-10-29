@@ -18,6 +18,7 @@ import { TelemetryService, PostHogTelemetryClient } from "@roo-code/telemetry"
 
 import "./utils/path" // Necessary to have access to String.prototype.toPosix.
 import { createOutputChannelLogger, createDualLogger } from "./utils/outputChannelLogger"
+import { MemoryDiagnostics } from "./utils/memoryDiagnostics"
 
 import { Package } from "./shared/package"
 import { formatLanguage } from "./shared/language"
@@ -69,6 +70,11 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel = vscode.window.createOutputChannel("Kilo-Code")
     context.subscriptions.push(outputChannel)
     outputChannel.appendLine(`${Package.name} extension activated - ${JSON.stringify(Package)}`)
+
+    // Initialize memory diagnostics
+    MemoryDiagnostics.setOutputChannel(outputChannel)
+    MemoryDiagnostics.snapshot("Extension activation started")
+    MemoryDiagnostics.startMonitoring()
 
     // Migrate old settings to new
     await migrateSettings(context, outputChannel)
@@ -154,7 +160,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // Initialize the provider *before* the Roo Code Cloud service.
+    MemoryDiagnostics.snapshot("Before ClineProvider creation")
     const provider = new ClineProvider(context, outputChannel, "sidebar", contextProxy, mdmService)
+    MemoryDiagnostics.created("ClineProvider", { viewType: "sidebar" })
 
     // Initialize Roo Code Cloud service.
     const postStateListener = () => ClineProvider.getVisibleInstance()?.postStateToWebview()
@@ -206,11 +214,13 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     }
 
+    MemoryDiagnostics.snapshot("Before CloudService creation")
     cloudService = await CloudService.createInstance(context, cloudLogger, {
         "auth-state-changed": authStateChangedHandler,
         "settings-updated": settingsUpdatedHandler,
         "user-info": userInfoHandler,
     })
+    MemoryDiagnostics.created("CloudService")
 
     try {
         if (cloudService.telemetryClient) {
@@ -242,6 +252,7 @@ export async function activate(context: vscode.ExtensionContext) {
             webviewOptions: { retainContextWhenHidden: true },
         }),
     )
+    MemoryDiagnostics.snapshot("After webview provider registration")
 
     // kilocode_change start
     if (!context.globalState.get("firstInstallCompleted")) {
@@ -392,12 +403,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
     await checkAndRunAutoLaunchingTask(context) // kilocode_change
 
+    MemoryDiagnostics.snapshot("Extension activation completed")
+
     return new API(outputChannel, provider, socketPath, enableLogging)
 }
 
 // This method is called when your extension is deactivated.
 export async function deactivate() {
     const startTime = Date.now()
+    MemoryDiagnostics.snapshot("Extension deactivation started")
     outputChannel.appendLine(`${Package.name} extension deactivated`)
 
     // Log session state before disposal
@@ -460,6 +474,10 @@ export async function deactivate() {
     await McpServerManager.cleanup(extensionContext)
     TelemetryService.instance.shutdown()
     TerminalRegistry.cleanup()
+
+    // Stop memory monitoring and log final state
+    MemoryDiagnostics.snapshot("Extension deactivation completed")
+    MemoryDiagnostics.stopMonitoring()
 
     // Log disposal completion time
     const disposalTime = Date.now() - startTime
