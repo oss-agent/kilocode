@@ -397,7 +397,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated.
 export async function deactivate() {
+    const startTime = Date.now()
     outputChannel.appendLine(`${Package.name} extension deactivated`)
+
+    // Log session state before disposal
+    const sessionState = {
+        activeProviders: (ClineProvider as any).activeInstances?.size || 0,
+        codeIndexManagers: (CodeIndexManager as any).instances?.size || 0,
+    }
+    outputChannel.appendLine(`[Deactivate] Session state: ${JSON.stringify(sessionState)}`)
 
     // Dispose all ClineProvider instances to prevent memory leaks
     try {
@@ -452,4 +460,8 @@ export async function deactivate() {
     await McpServerManager.cleanup(extensionContext)
     TelemetryService.instance.shutdown()
     TerminalRegistry.cleanup()
+
+    // Log disposal completion time
+    const disposalTime = Date.now() - startTime
+    outputChannel.appendLine(`[Deactivate] Completed in ${disposalTime}ms`)
 }
