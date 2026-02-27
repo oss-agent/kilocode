@@ -163,7 +163,15 @@ export function stripLineNumbers(content: string, aggressive: boolean = false): 
 
 	// Join back with original line endings (carriage return (\r) + line feed (\n) or just line feed (\n))
 	const lineEnding = content.includes("\r\n") ? "\r\n" : "\n"
-	return processedLines.join(lineEnding)
+	const result = processedLines.join(lineEnding)
+
+	// kilocode_change start - preserve trailing newline from original content
+	if (content.endsWith(lineEnding) && !result.endsWith(lineEnding)) {
+		return result + lineEnding
+	}
+	// kilocode_change end - preserve trailing newline from original content
+
+	return result
 }
 
 /**
